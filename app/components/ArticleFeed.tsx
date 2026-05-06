@@ -67,13 +67,23 @@ async function shareArticle(article: Article): Promise<'shared' | 'copied' | 'ca
   }
 }
 
-export default function ArticleFeed({ categories }: { categories: string[] }) {
-  const [articles, setArticles] = useState<Article[]>([]);
+export default function ArticleFeed({
+  categories,
+  initialArticles,
+  headline = 'Your articles',
+}: {
+  categories: string[];
+  initialArticles?: Article[];
+  headline?: string;
+}) {
+  const [articles, setArticles] = useState<Article[]>(initialArticles ?? []);
   const [pendingArticles, setPendingArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialArticles);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(() =>
+    initialArticles ? Date.now() : null
+  );
   const [now, setNow] = useState(() => Date.now());
   const [readLinks, setReadLinks] = useLocalStorageSet(READ_KEY);
   const [bookmarks, setBookmarks] = useLocalStorageSet(BOOKMARK_KEY);
@@ -165,13 +175,13 @@ export default function ArticleFeed({ categories }: { categories: string[] }) {
       }
     }
 
-    load(false);
+    if (!initialArticles) load(false);
     const interval = setInterval(() => load(true), AUTO_REFRESH_INTERVAL);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [categories]);
+  }, [categories, initialArticles]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), TIME_AGO_INTERVAL);
@@ -271,9 +281,9 @@ export default function ArticleFeed({ categories }: { categories: string[] }) {
       <div className="relative z-10 max-w-3xl mx-auto pt-8">
         <HeaderActions isDark={isDark} toggleTheme={toggleTheme} />
 
-        <div className="flex items-center justify-between mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:bg-gradient-to-br dark:from-white dark:to-gray-400 dark:bg-clip-text dark:text-transparent">
-            Your articles
+        <div className="flex items-center justify-between mb-10 gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:bg-gradient-to-br dark:from-white dark:to-gray-400 dark:bg-clip-text dark:text-transparent">
+            {headline}
           </h1>
           <button
             onClick={() => router.push('/')}
