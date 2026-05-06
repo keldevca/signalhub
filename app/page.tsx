@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import ParticleBackground from './components/ParticleBackground';
 import InteractiveFace from './components/InteractiveFace';
+import HeaderActions from './components/HeaderActions';
 import { useTheme } from './hooks/useTheme';
 import { useLocalStorageStringArray } from './hooks/useLocalStorage';
 
@@ -138,13 +139,7 @@ export default function Home() {
         </span>
       </div>
 
-      {/* Toggle thème */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-4 right-4 z-50 p-2 rounded-lg border text-sm transition-all cursor-pointer bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none"
-      >
-        {isDark ? '☀️' : '🌙'}
-      </button>
+      <HeaderActions isDark={isDark} toggleTheme={toggleTheme} />
 
       <div
         className={`relative z-10 w-full max-w-2xl flex flex-col gap-4 sm:gap-8 transition-transform duration-500 ease-out ${selected.length === 0 ? 'translate-y-[12vh] sm:translate-y-[15vh]' : 'translate-y-0'

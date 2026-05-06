@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useTheme } from '../hooks/useTheme';
 import { useLocalStorageSet } from '../hooks/useLocalStorage';
 import ParticleBackground from '../components/ParticleBackground';
+import HeaderActions from '../components/HeaderActions';
 
 interface Article {
   title: string;
@@ -217,13 +218,7 @@ export default function ResultsView() {
       </div>
 
       <div className="relative z-10 max-w-3xl mx-auto pt-8">
-        <button
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-          className="fixed top-4 right-4 z-50 p-2 rounded-lg border text-sm transition-all cursor-pointer bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
+        <HeaderActions isDark={isDark} toggleTheme={toggleTheme} />
 
         <div className="flex items-center justify-between mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:bg-gradient-to-br dark:from-white dark:to-gray-400 dark:bg-clip-text dark:text-transparent">
