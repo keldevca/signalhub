@@ -7,6 +7,7 @@ import InteractiveFace from './components/InteractiveFace';
 import HeaderActions from './components/HeaderActions';
 import { useTheme } from './hooks/useTheme';
 import { useLocalStorageStringArray } from './hooks/useLocalStorage';
+import { categoriesToSlug } from './lib/categories';
 
 const PREFERENCE_GROUPS = [
   { id: 'langages', label: 'Languages', items: ['JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Go', 'PHP', 'C / C++'] },
@@ -115,7 +116,9 @@ export default function Home() {
   }
 
   function handleSubmit() {
-    router.push(`/results?categories=${selected.join(',')}`);
+    const slug = categoriesToSlug(selected);
+    if (!slug) return;
+    router.push(`/feed/${slug}`);
   }
 
   const currentGroup = PREFERENCE_GROUPS.find(g => g.id === activeGroup)!;

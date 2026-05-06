@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useTheme } from '../hooks/useTheme';
 import { useLocalStorageSet } from '../hooks/useLocalStorage';
-import ParticleBackground from '../components/ParticleBackground';
-import HeaderActions from '../components/HeaderActions';
+import ParticleBackground from './ParticleBackground';
+import HeaderActions from './HeaderActions';
 
 interface Article {
   title: string;
@@ -67,7 +67,7 @@ async function shareArticle(article: Article): Promise<'shared' | 'copied' | 'ca
   }
 }
 
-export default function ResultsView() {
+export default function ArticleFeed({ categories }: { categories: string[] }) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [pendingArticles, setPendingArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +84,6 @@ export default function ResultsView() {
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isDark, toggleTheme } = useTheme();
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
@@ -109,11 +108,6 @@ export default function ResultsView() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-
-  const categories = useMemo(
-    () => searchParams.get('categories')?.split(',').filter(Boolean) ?? [],
-    [searchParams]
-  );
 
   function markAsRead(link: string) {
     if (readLinks.has(link)) return;
@@ -603,12 +597,12 @@ function ArticleCard({
       >
         <div className="flex gap-4">
           {showImage && article.image && (
-            <div className="relative w-20 h-20 sm:w-28 sm:h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-white/5">
+            <div className="relative w-28 h-16 sm:w-36 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-white/5">
               <Image
                 src={article.image}
                 alt=""
                 fill
-                sizes="(min-width: 640px) 112px, 80px"
+                sizes="(min-width: 640px) 144px, 112px"
                 referrerPolicy="no-referrer"
                 onError={() => setImageBroken(true)}
                 className="object-cover"

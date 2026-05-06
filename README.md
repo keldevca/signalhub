@@ -17,13 +17,17 @@
 - **Personalized feed** — pick the categories you care about (JavaScript, Python, AI, Cloud, Cybersecurity, UI/UX…) and the selection is saved locally in your browser.
 - **Smart aggregation** — fetches from 30+ developer RSS feeds (TechCrunch, VentureBeat, Dev.to, InfoQ, Smashing Magazine and more) with strict per-keyword regex matching to avoid false positives (e.g. `java` won't match `javascript`).
 - **Fast & cached** — custom in-memory cache with TTL and stale-while-revalidate strategy directly inside the Next.js API route, exposed via `X-Cache: HIT/STALE/MISS` headers.
+- **Article thumbnails** — pulled directly from the RSS payload (`media:thumbnail`, `media:content`, `enclosure`, `itunes:image`, or the first image in `content:encoded`). HTTPS-only and gracefully hidden if the source URL fails.
+- **Reading time** — a "~N min read" estimate is computed client-side from the article snippet.
+- **Search & shortcuts** — instant client-side search across title, snippet and source. Press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> from anywhere, or <kbd>/</kbd> when not typing, to focus the search bar.
+- **Share** — native Web Share on mobile, with a clipboard fallback on desktop.
 - **Bookmarks & read tracking** — star articles to keep them, mark items as read, and filter by either, all persisted in `localStorage` with cross-tab sync via `useSyncExternalStore`.
-- **Powerful filters** — narrow by date (today / week / month), source, read status, or bookmarks, all in a single sticky filter bar.
+- **Powerful filters** — narrow by date (today / week / month), source, read status, or bookmarks, all in a single filter bar with one-click reset.
 - **Modern UI/UX**
   - Dynamic dark / light theme toggle.
   - "Interactive Face" mascot that follows your cursor.
   - Native-feeling horizontal swipe with custom inertia physics.
-  - Beautiful particle background canvas.
+  - Particle background canvas.
 - **SEO & PWA ready** — dynamic Open Graph image, JSON-LD structured data, sitemap, robots, and a PWA manifest so the app is installable on mobile and desktop.
 
 ## Tech stack
@@ -89,18 +93,36 @@ const CACHE_STALE = 60 * 60 * 1000; // serve stale + revalidate up to 1 h
 const PER_SOURCE_LIMIT = 25;        // max articles kept per source
 ```
 
+## Keyboard shortcuts
+
+| Shortcut                                | Action                          |
+| --------------------------------------- | ------------------------------- |
+| <kbd>⌘</kbd> / <kbd>Ctrl</kbd>+<kbd>K</kbd> | Focus the search bar            |
+| <kbd>/</kbd>                            | Focus the search bar (when idle) |
+
+## URL structure
+
+| URL                                | Purpose                                             | Indexable |
+| ---------------------------------- | --------------------------------------------------- | --------- |
+| `/`                                | Home — pick categories                              | ✅        |
+| `/feed/[slug]`                     | Feed for one or more categories                     | Single ✅ / Multi ❌ |
+
+Each category has a stable slug (`javascript`, `typescript`, `c-cpp`, `ai`, …). Multiple categories are joined with `_`, e.g. `/feed/javascript_python_typescript`. Single-category feeds are pre-rendered at build time, indexed in `sitemap.xml`, and exposed to search engines. Multi-category combinations are server-rendered on demand and marked `noindex` to avoid duplicate-content dilution.
+
 ## Project structure
 
 ```
 app/
-  api/fetch-news/route.ts   RSS aggregation, filtering, and cache
-  components/               UI components (ParticleBackground, InteractiveFace)
+  api/fetch-news/route.ts   RSS aggregation, image extraction, filtering, cache
+  components/               UI components (ArticleFeed, ParticleBackground, InteractiveFace, HeaderActions)
   hooks/                    useTheme, useLocalStorage (useSyncExternalStore-based)
-  lib/site.ts               Centralized site URL, name, description
-  results/                  Results view (server-side metadata + client view)
+  lib/site.ts               Centralized site URL, name, description, GitHub URL
+  lib/categories.ts         Category list, slug ↔ name mapping
+  feed/[slug]/page.tsx      Server: generateStaticParams, generateMetadata, JSON-LD
+  feed/[slug]/opengraph-image.tsx  Dynamic OG image per feed
   layout.tsx                Root layout, JSON-LD, metadata, viewport
   manifest.ts               PWA manifest
-  opengraph-image.tsx       Dynamic 1200×630 OG image
+  opengraph-image.tsx       Default 1200×630 OG image
   robots.ts                 robots.txt route
   sitemap.ts                sitemap.xml route
 public/                     Static assets (logo, icons)
