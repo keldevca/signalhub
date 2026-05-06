@@ -13,6 +13,7 @@ interface Article {
   date: string;
   source: string;
   snippet: string;
+  image: string | null;
 }
 
 type DateFilter = 'all' | 'today' | 'week' | 'month';
@@ -572,7 +573,9 @@ function ArticleCard({
   onToggleBookmark: () => void;
 }) {
   const [shareLabel, setShareLabel] = useState<string | null>(null);
+  const [imageBroken, setImageBroken] = useState(false);
   const minutes = useMemo(() => readingTime(article.snippet), [article.snippet]);
+  const showImage = Boolean(article.image) && !imageBroken;
 
   async function handleShare() {
     const result = await shareArticle(article);
@@ -598,28 +601,46 @@ function ArticleCard({
         onClick={onMarkRead}
         className="block p-5 pb-16"
       >
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <span className="text-xs font-mono uppercase tracking-widest text-blue-600 dark:text-blue-400 truncate">
-            {article.source}
-          </span>
-          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-gray-600 shrink-0">
-            <span>~{minutes} min read</span>
-            <span aria-hidden="true">·</span>
-            <span>
-              {new Date(article.date).toLocaleDateString('en-US', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </span>
+        <div className="flex gap-4">
+          {showImage && article.image && (
+            <div className="relative w-20 h-20 sm:w-28 sm:h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-white/5">
+              <Image
+                src={article.image}
+                alt=""
+                fill
+                sizes="(min-width: 640px) 112px, 80px"
+                referrerPolicy="no-referrer"
+                onError={() => setImageBroken(true)}
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <span className="text-xs font-mono uppercase tracking-widest text-blue-600 dark:text-blue-400 truncate">
+                {article.source}
+              </span>
+              <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-gray-600 shrink-0">
+                <span>~{minutes} min read</span>
+                <span aria-hidden="true">·</span>
+                <span>
+                  {new Date(article.date).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            </div>
+            <h2 className="text-base font-semibold leading-snug mb-2 text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
+              {article.title}
+            </h2>
+            <p className="text-sm line-clamp-2 leading-relaxed text-slate-600 dark:text-gray-500">
+              {article.snippet}
+            </p>
           </div>
         </div>
-        <h2 className="text-base font-semibold leading-snug mb-2 text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
-          {article.title}
-        </h2>
-        <p className="text-sm line-clamp-2 leading-relaxed text-slate-600 dark:text-gray-500">
-          {article.snippet}
-        </p>
       </a>
 
       <div className="absolute bottom-4 right-4 flex items-center gap-2">

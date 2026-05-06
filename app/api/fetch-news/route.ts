@@ -1,7 +1,24 @@
 import { NextResponse } from "next/server";
 import Parser from "rss-parser";
 
-const parser = new Parser({ timeout: 5000 });
+type CustomItem = {
+  'media:thumbnail'?: unknown;
+  'media:content'?: unknown;
+  'itunes:image'?: unknown;
+  'content:encoded'?: string;
+};
+
+const parser: Parser<unknown, CustomItem> = new Parser({
+  timeout: 5000,
+  customFields: {
+    item: [
+      ['media:thumbnail', 'media:thumbnail'],
+      ['media:content', 'media:content'],
+      ['itunes:image', 'itunes:image'],
+      ['content:encoded', 'content:encoded'],
+    ],
+  },
+});
 
 const SOURCES = [
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', categories: ['Tech News', 'Startups'] },
@@ -97,6 +114,56 @@ interface Article {
   date: string;
   source: string;
   snippet: string;
+  image: string | null;
+}
+
+function pickAttr(node: unknown, attr: string): string | null {
+  if (!node || typeof node !== 'object') return null;
+  const value = node as { $?: Record<string, string>; url?: string; href?: string };
+  if (value.$?.[attr]) return value.$[attr];
+  if (value.url) return value.url;
+  if (value.href) return value.href;
+  return null;
+}
+
+function extractImage(item: Record<string, unknown>): string | null {
+  const tryHttps = (url: string | null): string | null =>
+    url && /^https:\/\//i.test(url) ? url : null;
+
+  const thumb = item['media:thumbnail'];
+  const thumbUrl = pickAttr(Array.isArray(thumb) ? thumb[0] : thumb, 'url');
+  const fromThumb = tryHttps(thumbUrl);
+  if (fromThumb) return fromThumb;
+
+  const content = item['media:content'];
+  const contentArr = Array.isArray(content) ? content : content ? [content] : [];
+  for (const entry of contentArr) {
+    const url = pickAttr(entry, 'url');
+    const fromContent = tryHttps(url);
+    if (fromContent) return fromContent;
+  }
+
+  const enclosure = item.enclosure as { url?: string; type?: string } | undefined;
+  if (enclosure?.url) {
+    const isImage =
+      enclosure.type?.startsWith('image/') ||
+      /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(enclosure.url);
+    if (isImage) {
+      const fromEnclosure = tryHttps(enclosure.url);
+      if (fromEnclosure) return fromEnclosure;
+    }
+  }
+
+  const itunes = pickAttr(item['itunes:image'], 'href');
+  const fromItunes = tryHttps(itunes);
+  if (fromItunes) return fromItunes;
+
+  const html = (item['content:encoded'] as string | undefined) ?? (item.content as string | undefined) ?? '';
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  const fromHtml = tryHttps(match?.[1] ?? null);
+  if (fromHtml) return fromHtml;
+
+  return null;
 }
 
 function articleMatchesCategories(article: { title: string; snippet: string }, categories: string[]): boolean {
@@ -135,6 +202,7 @@ async function fetchAndCache(cacheKey: string, filteredSources: typeof SOURCES) 
             date: item.pubDate ?? '',
             source: filteredSources[index].name,
             snippet: item.contentSnippet ?? '',
+            image: extractImage(item as unknown as Record<string, unknown>),
           }))
           .filter(article =>
             selectedCategories.length === 0 || articleMatchesCategories(article, selectedCategories)
