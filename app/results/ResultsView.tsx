@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useTheme } from '../hooks/useTheme';
@@ -43,6 +43,29 @@ function timeAgoFrom(timestamp: number, now: number): string {
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
+function readingTime(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+async function shareArticle(article: Article): Promise<'shared' | 'copied' | 'cancelled' | 'error'> {
+  const payload = { title: article.title, text: article.snippet, url: article.link };
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share(payload);
+      return 'shared';
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return 'cancelled';
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(article.link);
+    return 'copied';
+  } catch {
+    return 'error';
+  }
+}
+
 export default function ResultsView() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [pendingArticles, setPendingArticles] = useState<Article[]>([]);
@@ -57,9 +80,34 @@ export default function ResultsView() {
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { isDark, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    }
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const categories = useMemo(
     () => searchParams.get('categories')?.split(',').filter(Boolean) ?? [],
@@ -148,6 +196,7 @@ export default function ResultsView() {
   );
 
   const visibleArticles = useMemo(() => {
+    const query = search.trim().toLowerCase();
     return articles.filter((a) => {
       if (hideRead && readLinks.has(a.link)) return false;
       if (showBookmarksOnly && !bookmarks.has(a.link)) return false;
@@ -156,6 +205,10 @@ export default function ResultsView() {
         const ts = new Date(a.date).getTime();
         if (Number.isNaN(ts)) return false;
         if (now - ts > DATE_RANGES[dateFilter]) return false;
+      }
+      if (query) {
+        const haystack = `${a.title} ${a.snippet} ${a.source}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
       }
       return true;
     });
@@ -168,6 +221,7 @@ export default function ResultsView() {
     readLinks,
     bookmarks,
     now,
+    search,
   ]);
 
   const readCount = useMemo(
@@ -182,7 +236,8 @@ export default function ResultsView() {
     hideRead ||
     showBookmarksOnly ||
     sourceFilter !== 'all' ||
-    dateFilter !== 'all';
+    dateFilter !== 'all' ||
+    search.trim().length > 0;
 
   const timeAgoLabel = lastUpdated ? timeAgoFrom(lastUpdated, now) : '';
 
@@ -191,6 +246,7 @@ export default function ResultsView() {
     setShowBookmarksOnly(false);
     setSourceFilter('all');
     setDateFilter('all');
+    setSearch('');
   }
 
   return (
@@ -259,6 +315,9 @@ export default function ResultsView() {
 
         <FilterBar
           isDark={isDark}
+          search={search}
+          setSearch={setSearch}
+          searchInputRef={searchInputRef}
           dateFilter={dateFilter}
           setDateFilter={setDateFilter}
           sourceFilter={sourceFilter}
@@ -328,6 +387,9 @@ export default function ResultsView() {
 
 function FilterBar(props: {
   isDark: boolean;
+  search: string;
+  setSearch: (v: string) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   dateFilter: DateFilter;
   setDateFilter: (v: DateFilter) => void;
   sourceFilter: string;
@@ -345,6 +407,9 @@ function FilterBar(props: {
 }) {
   const {
     isDark,
+    search,
+    setSearch,
+    searchInputRef,
     dateFilter,
     setDateFilter,
     sourceFilter,
@@ -365,6 +430,28 @@ function FilterBar(props: {
     <div
       className={`flex flex-col gap-3 mb-6 p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}
     >
+      <div className="relative flex items-center">
+        <SearchIcon />
+        <input
+          ref={searchInputRef}
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, snippet, source..."
+          aria-label="Search articles"
+          className={`w-full pl-9 pr-20 py-2 rounded-lg border text-sm outline-none transition-all ${
+            isDark
+              ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-blue-500/50'
+              : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-400'
+          }`}
+        />
+        <kbd
+          className={`absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded border pointer-events-none ${isDark ? 'bg-white/5 border-white/10 text-gray-500' : 'bg-white border-slate-200 text-slate-400'}`}
+        >
+          {typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}
+        </kbd>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-mono uppercase tracking-widest text-slate-400 dark:text-gray-600 shrink-0">
           Date
@@ -484,6 +571,22 @@ function ArticleCard({
   onMarkRead: () => void;
   onToggleBookmark: () => void;
 }) {
+  const [shareLabel, setShareLabel] = useState<string | null>(null);
+  const minutes = useMemo(() => readingTime(article.snippet), [article.snippet]);
+
+  async function handleShare() {
+    const result = await shareArticle(article);
+    if (result === 'cancelled') return;
+    const message =
+      result === 'shared'
+        ? 'Shared'
+        : result === 'copied'
+          ? 'Link copied'
+          : 'Failed';
+    setShareLabel(message);
+    window.setTimeout(() => setShareLabel(null), 2000);
+  }
+
   return (
     <div
       className={`group relative rounded-xl border transition-all duration-200 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/[0.08] border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-sm dark:shadow-none ${isRead ? 'opacity-50' : ''}`}
@@ -495,17 +598,21 @@ function ArticleCard({
         onClick={onMarkRead}
         className="block p-5 pb-16"
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-mono uppercase tracking-widest text-blue-600 dark:text-blue-400">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <span className="text-xs font-mono uppercase tracking-widest text-blue-600 dark:text-blue-400 truncate">
             {article.source}
           </span>
-          <span className="text-xs text-slate-400 dark:text-gray-600">
-            {new Date(article.date).toLocaleDateString('en-US', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </span>
+          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-gray-600 shrink-0">
+            <span>~{minutes} min read</span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {new Date(article.date).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </span>
+          </div>
         </div>
         <h2 className="text-base font-semibold leading-snug mb-2 text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
           {article.title}
@@ -516,6 +623,20 @@ function ArticleCard({
       </a>
 
       <div className="absolute bottom-4 right-4 flex items-center gap-2">
+        {shareLabel && (
+          <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium animate-in fade-in">
+            {shareLabel}
+          </span>
+        )}
+
+        <button
+          onClick={handleShare}
+          aria-label="Share article"
+          className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-200 opacity-0 group-hover:opacity-100 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:border-blue-400 dark:hover:border-blue-500/50"
+        >
+          <ShareIcon />
+        </button>
+
         <button
           onClick={onToggleBookmark}
           aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
@@ -550,6 +671,45 @@ function ArticleCard({
         )}
       </div>
     </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="absolute left-3 w-4 h-4 text-slate-400 dark:text-gray-500 pointer-events-none"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="w-3.5 h-3.5"
+    >
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
   );
 }
 
