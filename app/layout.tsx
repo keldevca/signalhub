@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Script from 'next/script';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from './lib/site';
 import './globals.css';
@@ -127,6 +128,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
         <PwaInstallPrompt />
+        <Script
+          src="https://analytics.blackinventors.world/script.js"
+          data-website-id="b32d2b52-59ae-4dc2-9ce1-2f546e4fba39"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
