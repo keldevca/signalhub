@@ -92,9 +92,14 @@ export default function ArticleFeed({
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [isMacLike, setIsMacLike] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isDark, toggleTheme } = useTheme();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsMacLike(/Mac|iPhone|iPad/.test(navigator.platform));
+  }, []);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -320,6 +325,7 @@ export default function ArticleFeed({
 
         <FilterBar
           isDark={isDark}
+          isMacLike={isMacLike}
           search={search}
           setSearch={setSearch}
           searchInputRef={searchInputRef}
@@ -392,6 +398,7 @@ export default function ArticleFeed({
 
 function FilterBar(props: {
   isDark: boolean;
+  isMacLike: boolean;
   search: string;
   setSearch: (v: string) => void;
   searchInputRef: React.RefObject<HTMLInputElement | null>;
@@ -412,6 +419,7 @@ function FilterBar(props: {
 }) {
   const {
     isDark,
+    isMacLike,
     search,
     setSearch,
     searchInputRef,
@@ -453,7 +461,7 @@ function FilterBar(props: {
         <kbd
           className={`absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded border pointer-events-none ${isDark ? 'bg-white/5 border-white/10 text-gray-500' : 'bg-white border-slate-200 text-slate-400'}`}
         >
-          {typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}
+          {isMacLike ? '⌘K' : 'Ctrl K'}
         </kbd>
       </div>
 
