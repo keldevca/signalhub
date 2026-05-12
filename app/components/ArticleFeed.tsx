@@ -81,10 +81,13 @@ export default function ArticleFeed({
   const [loading, setLoading] = useState(!initialArticles);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<number | null>(() =>
-    initialArticles ? Date.now() : null
-  );
-  const [now, setNow] = useState(() => Date.now());
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    setNow(Date.now());
+    if (initialArticles) setLastUpdated(Date.now());
+  }, [initialArticles]);
   const [readLinks, setReadLinks] = useLocalStorageSet(READ_KEY);
   const [bookmarks, setBookmarks] = useLocalStorageSet(BOOKMARK_KEY);
   const [hideRead, setHideRead] = useState(false);
@@ -641,6 +644,7 @@ function ArticleCard({
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
+                    timeZone: 'UTC',
                   })}
                 </span>
               </div>
